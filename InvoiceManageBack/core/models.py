@@ -43,6 +43,8 @@ class Invoice(models.Model):
     # 发票服务起止时间 —— 主要用于火车票/机票的具体时刻及网约车（订单跨越多日的合并发票）等场景
     service_start_date = models.DateTimeField(null=True, blank=True, verbose_name="服务开始时间")
     service_end_date = models.DateTimeField(null=True, blank=True, verbose_name="服务结束时间")
+    vision_validation_result = models.JSONField(default=dict, blank=True, verbose_name="视觉模型校验结果")
+    vision_validated_at = models.DateTimeField(null=True, blank=True, verbose_name="视觉模型校验时间")
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

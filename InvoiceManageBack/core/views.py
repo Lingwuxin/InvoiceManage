@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
 from django.conf import settings
 from django.http import HttpResponse
+from django.utils import timezone
 from .models import Invoice, InvoiceAttachment, Reimbursement, TripGroup, TripGroupInvoice, TripSeparator, User, EmailAccount, ProcessedEmail
 from django.db.models import QuerySet
 from .serializers import (
@@ -23,6 +24,11 @@ import datetime
 import os
 from rest_framework.request import Request
 from tools.pdf_parser import PDFInvoiceParser, RideHailingTripStatementParser
+from tools.vision_validator import (
+    VisionValidationError,
+    VisionValidationNotConfigured,
+    validate_invoice_with_vision,
+)
 from .docx_export import render_reimbursement_docx
 from .trip_groups import (
     attach_invoice_to_trip_group,
@@ -355,6 +361,28 @@ class InvoiceViewSet(viewsets.ModelViewSet):
         )
 
         return True, match
+
+    @decorators.action(detail=True, methods=['post'], url_path='validate-vision')
+    def validate_vision(self, request, pk=None):
+        """Check parsed values against the invoice image without modifying them."""
+        invoice = self.get_object()
+        try:
+            result = validate_invoice_with_vision(invoice)
+        except VisionValidationNotConfigured as exc:
+            return Response(
+                {'detail': str(exc), 'code': 'vision_not_configured'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        except VisionValidationError as exc:
+            return Response(
+                {'detail': str(exc), 'code': 'vision_validation_failed'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        invoice.vision_validation_result = result
+        invoice.vision_validated_at = timezone.now()
+        invoice.save(update_fields=('vision_validation_result', 'vision_validated_at'))
+        return Response(self.get_serializer(invoice).data)
 
     def perform_destroy(self, instance):
         user = instance.user

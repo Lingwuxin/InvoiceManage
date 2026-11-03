@@ -18,6 +18,22 @@ interface InvoiceAttachmentItem {
   created_at: string
 }
 
+interface VisionFieldResult {
+  field: string
+  label: string
+  recognized_value: string
+  actual_value: string
+  status: 'MATCH' | 'MISMATCH' | 'NOT_VISIBLE' | 'UNCERTAIN'
+  note: string
+}
+
+interface VisionValidationResult {
+  status: 'PASS' | 'NEEDS_REVIEW'
+  summary: string
+  model: string
+  fields: VisionFieldResult[]
+}
+
 interface InvoiceItem {
   id: number
   invoice_number: string
@@ -35,6 +51,8 @@ interface InvoiceItem {
   attachments?: InvoiceAttachmentItem[]
   trip_group_title?: string | null
   reimbursement_status?: 'APPROVED' | 'PENDING' | 'NONE'
+  vision_validation_result?: VisionValidationResult | Record<string, never>
+  vision_validated_at?: string | null
 }
 
 const invoices = ref<InvoiceItem[]>([])
@@ -52,6 +70,7 @@ const pageSize = ref(calculateAdaptivePageSize())
 const backendOrigin = window.location.origin
 const previewVisible = ref(false)
 const previewInvoice = ref<InvoiceItem | null>(null)
+const validatingVision = ref(false)
 const uploadRef = ref<UploadInstance>()
 const uploadList = ref<UploadUserFile[]>([])
 const uploadingCount = ref(0)
@@ -204,6 +223,49 @@ function openInvoicePreview(invoice: InvoiceItem) {
 function closeInvoicePreview() {
   previewVisible.value = false
   previewInvoice.value = null
+}
+
+function visionStatusText(status?: VisionFieldResult['status'] | VisionValidationResult['status']) {
+  if (status === 'PASS' || status === 'MATCH') return '一致'
+  if (status === 'MISMATCH') return '不一致'
+  if (status === 'NOT_VISIBLE') return '票据未显示'
+  if (status === 'NEEDS_REVIEW') return '需要复核'
+  return '无法确认'
+}
+
+function visionStatusClass(status?: VisionFieldResult['status'] | VisionValidationResult['status']) {
+  if (status === 'PASS' || status === 'MATCH') return 'vision-status-pass'
+  if (status === 'MISMATCH' || status === 'NEEDS_REVIEW') return 'vision-status-mismatch'
+  return 'vision-status-uncertain'
+}
+
+function formatVisionValidationTime(value?: string | null) {
+  if (!value) return ''
+  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+}
+
+async function handleVisionValidation() {
+  const invoice = previewInvoice.value
+  if (!invoice || validatingVision.value) return
+  validatingVision.value = true
+  try {
+    const { data } = await request.post(`invoices/${invoice.id}/validate-vision/`, null, {
+      timeout: 120000,
+    })
+    const updatedInvoice = data as InvoiceItem
+    previewInvoice.value = updatedInvoice
+    const index = invoices.value.findIndex((item) => item.id === updatedInvoice.id)
+    if (index >= 0) invoices.value.splice(index, 1, updatedInvoice)
+    if (updatedInvoice.vision_validation_result?.status === 'PASS') {
+      ElMessage.success('视觉校验完成，识别结果与发票一致')
+    } else {
+      ElMessage.warning('视觉校验完成，请复核标记的字段')
+    }
+  } catch {
+    // The shared response interceptor displays the backend error.
+  } finally {
+    validatingVision.value = false
+  }
 }
 
 function openPreviewInNewWindow() {
@@ -724,7 +786,12 @@ onBeforeUnmount(() => {
         <div class="preview-side">
           <div class="preview-toolbar">
             <div class="preview-section-title">票据信息</div>
-            <el-button type="primary" plain @click="openPreviewInNewWindow">新窗口打开</el-button>
+            <div class="preview-toolbar-actions">
+              <el-button type="primary" :loading="validatingVision" @click="handleVisionValidation">
+                {{ validatingVision ? '正在校验' : '视觉校验' }}
+              </el-button>
+              <el-button type="primary" plain @click="openPreviewInNewWindow">新窗口打开</el-button>
+            </div>
           </div>
           <div class="preview-info-list">
             <div class="preview-info-item">
@@ -805,6 +872,54 @@ onBeforeUnmount(() => {
               </div>
             </template>
           </div>
+          <section
+            v-if="previewInvoice.vision_validation_result?.status"
+            class="vision-validation-result"
+            aria-label="视觉模型校验结果"
+          >
+            <div class="vision-result-header">
+              <div>
+                <div class="vision-result-title">视觉模型校验</div>
+                <div class="vision-result-time">
+                  {{ formatVisionValidationTime(previewInvoice.vision_validated_at) }}
+                </div>
+              </div>
+              <span
+                class="vision-status-tag"
+                :class="visionStatusClass(previewInvoice.vision_validation_result.status)"
+              >
+                {{ visionStatusText(previewInvoice.vision_validation_result.status) }}
+              </span>
+            </div>
+            <p class="vision-result-summary">{{ previewInvoice.vision_validation_result.summary }}</p>
+            <div class="vision-field-list">
+              <div
+                v-for="field in previewInvoice.vision_validation_result.fields"
+                :key="field.field"
+                class="vision-field-item"
+              >
+                <div class="vision-field-heading">
+                  <span>{{ field.label }}</span>
+                  <span class="vision-field-status" :class="visionStatusClass(field.status)">
+                    {{ visionStatusText(field.status) }}
+                  </span>
+                </div>
+                <template v-if="field.status !== 'MATCH'">
+                  <div class="vision-field-comparison">
+                    <div>
+                      <span>识别值</span>
+                      <strong>{{ field.recognized_value || '—' }}</strong>
+                    </div>
+                    <div>
+                      <span>图像值</span>
+                      <strong>{{ field.actual_value || '—' }}</strong>
+                    </div>
+                  </div>
+                  <p v-if="field.note" class="vision-field-note">{{ field.note }}</p>
+                </template>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     </el-drawer>
@@ -1290,6 +1405,10 @@ onBeforeUnmount(() => {
   padding: 16px;
 }
 
+.preview-side {
+  overflow-y: auto;
+}
+
 .preview-section-title {
   font-size: 18px;
   font-weight: 600;
@@ -1349,6 +1468,123 @@ onBeforeUnmount(() => {
   font-size: 15px;
   color: var(--apple-black);
   word-break: break-word;
+}
+
+.preview-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vision-validation-result {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid var(--apple-gray-200);
+  border-radius: 12px;
+  background: var(--apple-gray-50);
+}
+
+.vision-result-header,
+.vision-field-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vision-result-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--apple-black);
+}
+
+.vision-result-time {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--apple-gray-500);
+}
+
+.vision-status-tag {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.vision-status-pass {
+  color: #16794a;
+  background: #e8f7ef;
+}
+
+.vision-status-mismatch {
+  color: #b42318;
+  background: #fff0ed;
+}
+
+.vision-status-uncertain {
+  color: #8a5a00;
+  background: #fff7df;
+}
+
+.vision-result-summary {
+  margin: 12px 0;
+  color: var(--apple-gray-700);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.vision-field-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border-top: 1px solid var(--apple-gray-200);
+}
+
+.vision-field-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--apple-gray-200);
+  font-size: 13px;
+}
+
+.vision-field-item:last-child {
+  border-bottom: 0;
+}
+
+.vision-field-status {
+  font-size: 12px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+}
+
+.vision-field-comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.vision-field-comparison div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vision-field-comparison span,
+.vision-field-note {
+  color: var(--apple-gray-500);
+  font-size: 12px;
+}
+
+.vision-field-comparison strong {
+  color: var(--apple-black);
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.vision-field-note {
+  margin: 8px 0 0;
+  line-height: 1.5;
 }
 
 /* ---- View Toggle ---- */

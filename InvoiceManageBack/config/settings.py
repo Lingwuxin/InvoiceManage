@@ -160,6 +160,12 @@ X_FRAME_OPTIONS = 'ALLOWALL'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# OpenAI-compatible vision model used for on-demand invoice verification.
+VISION_MODEL_API_KEY = os.getenv('VISION_MODEL_API_KEY', '')
+VISION_MODEL_NAME = os.getenv('VISION_MODEL_NAME', '')
+VISION_MODEL_BASE_URL = os.getenv('VISION_MODEL_BASE_URL', 'https://api.openai.com/v1')
+VISION_MODEL_TIMEOUT = int(os.getenv('VISION_MODEL_TIMEOUT', '90'))
+
 # 日志配置
 LOGGING = {
     'version': 1,

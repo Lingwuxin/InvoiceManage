@@ -1,4 +1,6 @@
 import datetime
+from io import BytesIO
+import json
 import tempfile
 from typing import Any, cast
 from unittest.mock import patch
@@ -6,9 +8,18 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, override_settings
 from rest_framework.test import APIClient, APITestCase
+from pypdf import PdfWriter
 
 from .models import Invoice, InvoiceAttachment, Reimbursement, TripGroup, TripGroupInvoice, User
 from .trip_groups import group_trip_periods, regroup_auto_trip_groups
+from tools.vision_validator import (
+	FIELD_DEFINITIONS,
+	VisionValidationError,
+	VisionValidationNotConfigured,
+	_request_vision_validation,
+	normalize_validation_result,
+	render_invoice_first_page,
+)
 
 
 class TripPeriodLogicTests(SimpleTestCase):
@@ -354,3 +365,162 @@ class ReimbursementApiTests(APITestCase):
 
 		self.assertEqual(response.status_code, 404)
 		self.assertTrue(Reimbursement.objects.filter(pk=reimbursement.pk).exists())
+
+
+class VisionValidationRequestTests(SimpleTestCase):
+	@override_settings(VISION_MODEL_API_KEY='', VISION_MODEL_NAME='')
+	def test_requires_api_key_and_model(self):
+		with self.assertRaises(VisionValidationNotConfigured):
+			_request_vision_validation(b'image', {})
+
+	@override_settings(
+		VISION_MODEL_API_KEY='test-key',
+		VISION_MODEL_NAME='vision-test',
+		VISION_MODEL_BASE_URL='https://vision.example.com/v1',
+		VISION_MODEL_TIMEOUT=30,
+	)
+	@patch('tools.vision_validator.urlopen')
+	def test_sends_openai_compatible_multimodal_request(self, urlopen):
+		response = urlopen.return_value.__enter__.return_value
+		response.read.return_value = json.dumps({
+			'choices': [{'message': {'content': '{"summary":"ok","fields":[]}'}}],
+		}).encode('utf-8')
+		recognized = {field: '' for field, _label in FIELD_DEFINITIONS}
+
+		result = _request_vision_validation(b'image-bytes', recognized)
+
+		self.assertEqual(result['summary'], 'ok')
+		request = urlopen.call_args.args[0]
+		self.assertEqual(request.full_url, 'https://vision.example.com/v1/chat/completions')
+		self.assertEqual(request.headers['Authorization'], 'Bearer test-key')
+		self.assertEqual(urlopen.call_args.kwargs['timeout'], 30)
+		payload = json.loads(request.data.decode('utf-8'))
+		self.assertEqual(payload['model'], 'vision-test')
+		content = payload['messages'][0]['content']
+		self.assertTrue(any(item.get('type') == 'image_url' for item in content))
+		self.assertIn('待核验字段', content[1]['text'])
+
+	def test_renders_first_pdf_page_as_jpeg(self):
+		source = BytesIO()
+		writer = PdfWriter()
+		writer.add_blank_page(width=595, height=842)
+		writer.write(source)
+
+		image = render_invoice_first_page(source)
+
+		self.assertTrue(image.startswith(b'\xff\xd8'))
+		self.assertGreater(len(image), 1000)
+
+
+class VisionValidationResultTests(SimpleTestCase):
+	def setUp(self):
+		self.recognized = {
+			field: f'recognized-{field}' for field, _label in FIELD_DEFINITIONS
+		}
+
+	def test_normalizes_complete_matching_result(self):
+		payload = {
+			'summary': '全部一致',
+			'fields': [
+				{
+					'field': field,
+					'status': 'MATCH',
+					'actual_value': self.recognized[field],
+					'note': '',
+				}
+				for field, _label in FIELD_DEFINITIONS
+			],
+		}
+
+		result = normalize_validation_result(payload, self.recognized, 'vision-test')
+
+		self.assertEqual(result['status'], 'PASS')
+		self.assertEqual(result['model'], 'vision-test')
+		self.assertEqual(len(result['fields']), len(FIELD_DEFINITIONS))
+		self.assertEqual(result['fields'][0]['label'], '发票号码')
+
+	def test_marks_missing_and_mismatched_fields_for_review(self):
+		payload = {
+			'summary': '金额不一致',
+			'fields': [
+				{
+					'field': 'amount',
+					'status': 'MISMATCH',
+					'actual_value': '99.00',
+					'note': '图像金额不同',
+				},
+			],
+		}
+
+		result = normalize_validation_result(payload, self.recognized, 'vision-test')
+
+		self.assertEqual(result['status'], 'NEEDS_REVIEW')
+		amount = next(item for item in result['fields'] if item['field'] == 'amount')
+		self.assertEqual(amount['actual_value'], '99.00')
+		self.assertEqual(amount['recognized_value'], 'recognized-amount')
+		missing = next(item for item in result['fields'] if item['field'] == 'invoice_number')
+		self.assertEqual(missing['status'], 'UNCERTAIN')
+
+
+@override_settings(MEDIA_ROOT=tempfile.gettempdir())
+class VisionValidationApiTests(APITestCase):
+	def setUp(self):
+		self.client = cast(APIClient, self.client)
+		self.user = User.objects.create_user(username='vision-user', password='test-pass-123')
+		self.other_user = User.objects.create_user(username='other-vision-user', password='test-pass-123')
+		self.client.force_authenticate(self.user)
+		self.invoice = Invoice.objects.create(
+			user=self.user,
+			file='invoices/test.pdf',
+			invoice_number='VISION1001',
+			amount='100.00',
+			product_name='办公用品',
+		)
+		self.result = {
+			'status': 'PASS',
+			'summary': '所有字段均一致',
+			'model': 'vision-test',
+			'fields': [],
+		}
+
+	def test_validates_and_persists_result_without_changing_parsed_values(self):
+		with patch('core.views.validate_invoice_with_vision', return_value=self.result) as validate:
+			response = self.client.post(f'/api/invoices/{self.invoice.pk}/validate-vision/')
+
+		response_data = cast(Any, response).data
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(response_data['vision_validation_result'], self.result)
+		self.assertIsNotNone(response_data['vision_validated_at'])
+		self.invoice.refresh_from_db()
+		self.assertEqual(self.invoice.vision_validation_result, self.result)
+		self.assertEqual(self.invoice.invoice_number, 'VISION1001')
+		self.assertEqual(str(self.invoice.amount), '100.00')
+		validate.assert_called_once_with(self.invoice)
+
+	def test_returns_service_unavailable_when_model_is_not_configured(self):
+		with patch(
+			'core.views.validate_invoice_with_vision',
+			side_effect=VisionValidationNotConfigured('尚未配置视觉模型'),
+		):
+			response = self.client.post(f'/api/invoices/{self.invoice.pk}/validate-vision/')
+
+		self.assertEqual(response.status_code, 503)
+		self.assertEqual(cast(Any, response).data['code'], 'vision_not_configured')
+
+	def test_returns_bad_gateway_for_model_failures(self):
+		with patch(
+			'core.views.validate_invoice_with_vision',
+			side_effect=VisionValidationError('视觉模型暂不可用'),
+		):
+			response = self.client.post(f'/api/invoices/{self.invoice.pk}/validate-vision/')
+
+		self.assertEqual(response.status_code, 502)
+		self.assertEqual(cast(Any, response).data['code'], 'vision_validation_failed')
+
+	def test_user_cannot_validate_another_users_invoice(self):
+		self.client.force_authenticate(self.other_user)
+		with patch('core.views.validate_invoice_with_vision') as validate:
+			response = self.client.post(f'/api/invoices/{self.invoice.pk}/validate-vision/')
+
+		self.assertEqual(response.status_code, 404)
+		validate.assert_not_called()
