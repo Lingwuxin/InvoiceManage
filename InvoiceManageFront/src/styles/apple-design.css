@@ -1,0 +1,524 @@
+/* ============================================================
+   Apple-Inspired Design System — Global Tokens & Element Plus Overrides
+   ============================================================ */
+
+/* ---------- Inter (SF Pro substitute) ---------- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
+
+/* ============================================================
+   01 — COLOR TOKENS
+   ============================================================ */
+:root {
+  /* Brand & Accent */
+  --apple-blue:           #0066cc;
+  --apple-blue-focus:     #0071e3;
+  --apple-blue-on-dark:   #2997ff;
+
+  /* Surface */
+  --apple-canvas:         #ffffff;
+  --apple-parchment:      #f5f5f7;
+  --apple-pearl:          #fafafc;
+  --apple-tile-1:         #272729;
+  --apple-tile-2:         #2a2a2c;
+  --apple-tile-3:         #252527;
+  --apple-black:          #000000;
+
+  /* Text */
+  --apple-ink:            #1d1d1f;
+  --apple-ink-muted:      #333333;
+  --apple-ink-disabled:   #7a7a7a;
+  --apple-body-muted:     #cccccc;
+
+  /* Hairlines */
+  --apple-hairline:       #e0e0e0;
+  --apple-divider-soft:   #f0f0f0;
+
+  /* Semantic */
+  --apple-success:        #30b94c;
+  --apple-warning:        #ff9f0a;
+  --apple-danger:         #ff3b30;
+
+  /* ============================================================
+     02 — TYPOGRAPHY
+     ============================================================ */
+  --font-sans:            'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+  --font-mono:            'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+
+  /* Scale (Apple uses 17px body — the signature) */
+  --text-nav:             12px;
+  --text-button-utility:  14px;
+  --text-body:            17px;
+  --text-body-strong:     17px;
+  --text-button-large:    18px;
+  --text-tagline:         21px;
+  --text-lead-airy:       24px;
+  --text-lead:            28px;
+  --text-display-md:      34px;
+  --text-display-lg:      40px;
+  --text-hero:            56px;
+
+  /* Letter spacing */
+  --tracking-nav:         -0.12px;
+  --tracking-button:      -0.224px;
+  --tracking-body:        -0.374px;
+  --tracking-tagline:     0.231px;
+  --tracking-lead:        0.196px;
+  --tracking-display:     -0.374px;
+  --tracking-hero:        -0.28px;
+
+  /* ============================================================
+     03 — SPACING
+     ============================================================ */
+  --space-xxs:            4px;
+  --space-xs:             8px;
+  --space-sm:             12px;
+  --space-md:             17px;
+  --space-lg:             24px;
+  --space-xl:             32px;
+  --space-xxl:            48px;
+  --space-section:        80px;
+
+  /* ============================================================
+     04 — BORDER RADIUS
+     ============================================================ */
+  --radius-none:          0;
+  --radius-xs:            5px;
+  --radius-sm:            8px;
+  --radius-md:            11px;
+  --radius-lg:            18px;
+  --radius-pill:          9999px;
+
+  /* ============================================================
+     05 — SHADOWS (Apple: essentially none for cards)
+     ============================================================ */
+  --shadow-hairline:      0 0 0 1px rgba(0, 0, 0, 0.08);
+  --shadow-product:       0 4px 20px rgba(0, 0, 0, 0.12);
+
+  /* ============================================================
+     06 — TRANSITIONS
+     ============================================================ */
+  --ease-out:             cubic-bezier(0.25, 0.1, 0.25, 1);
+  --duration-fast:        0.15s;
+  --duration-normal:      0.25s;
+  --duration-slow:        0.35s;
+}
+
+/* ============================================================
+   07 — GLOBAL RESET & BASE
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 400;
+  line-height: 1.47;
+  letter-spacing: var(--tracking-body);
+  color: var(--apple-ink);
+  background: var(--apple-parchment);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  color: var(--apple-ink);
+  letter-spacing: var(--tracking-display);
+  margin: 0;
+}
+
+h1 { font-size: var(--text-display-lg); line-height: 1.10; }
+h2 { font-size: var(--text-display-md); line-height: 1.14; }
+h3 { font-size: var(--text-lead); line-height: 1.14; font-weight: 400; }
+h4 { font-size: var(--text-tagline); line-height: 1.19; }
+
+a {
+  color: var(--apple-blue);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-out);
+}
+a:hover {
+  color: var(--apple-blue-focus);
+}
+
+/* ============================================================
+   08 — ELEMENT PLUS GLOBAL OVERRIDES
+   ============================================================ */
+
+/* --- CSS Variables override for Element Plus --- */
+:root {
+  --el-color-primary:           var(--apple-blue);
+  --el-color-primary-light-3:   #3385d6;
+  --el-color-primary-light-5:   #66a3e0;
+  --el-color-primary-light-7:   #99c2eb;
+  --el-color-primary-light-8:   #b3d1f0;
+  --el-color-primary-light-9:   #cce0f5;
+  --el-color-primary-dark-2:    #0052a3;
+  --el-color-success:           var(--apple-success);
+  --el-color-warning:           var(--apple-warning);
+  --el-color-danger:            var(--apple-danger);
+  --el-border-radius-base:      var(--radius-sm);
+  --el-border-radius-round:     var(--radius-pill);
+  --el-font-family:             var(--font-sans);
+  --el-font-size-base:          var(--text-body);
+  --el-text-color-primary:      var(--apple-ink);
+  --el-text-color-regular:      var(--apple-ink-muted);
+  --el-text-color-secondary:    var(--apple-ink-disabled);
+  --el-border-color:            var(--apple-hairline);
+  --el-border-color-light:      var(--apple-divider-soft);
+  --el-bg-color:                var(--apple-canvas);
+  --el-bg-color-page:           var(--apple-parchment);
+  --el-fill-color-blank:        var(--apple-canvas);
+  --el-fill-color-light:        var(--apple-pearl);
+  --el-disabled-bg-color:       var(--apple-parchment);
+}
+
+/* --- Buttons: Pills for primary actions --- */
+.el-button {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  letter-spacing: var(--tracking-button);
+  border-radius: var(--radius-pill) !important;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.el-button--primary {
+  background: var(--apple-blue);
+  border-color: var(--apple-blue);
+  font-size: var(--text-body);
+  padding: 11px 28px;
+  font-weight: 400;
+  border-radius: var(--radius-pill) !important;
+}
+.el-button--primary.is-plain {
+  background: transparent;
+  border-color: var(--apple-blue);
+  color: var(--apple-blue);
+}
+.el-button--primary:hover {
+  background: var(--apple-blue-focus);
+  border-color: var(--apple-blue-focus);
+  color: #fff;
+}
+.el-button--primary.is-plain:hover {
+  background: var(--apple-blue);
+  border-color: var(--apple-blue);
+  color: #fff;
+}
+.el-button--primary:active {
+  transform: scale(0.95);
+}
+.el-button--primary:focus-visible {
+  outline: 2px solid var(--apple-blue-focus);
+  outline-offset: 2px;
+}
+
+/* Secondary pill */
+.el-button--default {
+  background: transparent;
+  border: 1px solid var(--apple-blue);
+  color: var(--apple-blue);
+}
+.el-button--default:hover {
+  background: var(--apple-blue);
+  color: #fff;
+}
+
+.el-button--success {
+  background: #248f3a;
+  border-color: #248f3a;
+  color: #fff;
+  border-radius: var(--radius-pill) !important;
+}
+.el-button--success:hover {
+  background: var(--apple-success);
+  border-color: var(--apple-success);
+  color: #fff;
+}
+.el-button--danger {
+  background: #e02e24;
+  border-color: #e02e24;
+  color: #fff;
+  border-radius: var(--radius-pill) !important;
+}
+.el-button--danger:hover {
+  background: var(--apple-danger);
+  border-color: var(--apple-danger);
+  color: #fff;
+}
+.el-button--warning {
+  background: #d97706;
+  border-color: #d97706;
+  color: #fff;
+  border-radius: var(--radius-pill) !important;
+}
+.el-button--warning:hover {
+  background: var(--apple-warning);
+  border-color: var(--apple-warning);
+  color: #fff;
+}
+
+.el-button--small {
+  font-size: var(--text-button-utility);
+  padding: 6px 18px;
+}
+
+.el-button--large {
+  font-size: var(--text-button-large);
+  padding: 14px 36px;
+  font-weight: 300;
+}
+
+/* --- Inputs: Clean, minimal --- */
+.el-input__wrapper {
+  background: var(--apple-canvas);
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-hairline) !important;
+  transition: box-shadow var(--duration-fast) var(--ease-out);
+  padding: 0 16px;
+}
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.16) !important;
+}
+.el-input__wrapper.is-focus {
+  box-shadow: 0 0 0 2px var(--apple-blue-focus) !important;
+}
+.el-input__inner {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  color: var(--apple-ink);
+}
+.el-input__inner::placeholder {
+  color: var(--apple-ink-disabled);
+}
+
+/* --- Select --- */
+.el-select .el-input__wrapper {
+  border-radius: var(--radius-sm) !important;
+}
+
+/* --- Table: Clean, no stripes, hairline separators --- */
+.el-table {
+  --el-table-border-color: var(--apple-divider-soft);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  background: var(--apple-canvas);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.el-table th.el-table__cell {
+  background: var(--apple-parchment);
+  color: var(--apple-ink);
+  font-weight: 600;
+  font-size: var(--text-button-utility);
+  text-transform: none;
+  letter-spacing: var(--tracking-button);
+  border-bottom: 1px solid var(--apple-hairline);
+  padding: 14px 16px;
+}
+.el-table td.el-table__cell {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--apple-divider-soft);
+  color: var(--apple-ink);
+}
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background: var(--apple-pearl);
+}
+.el-table .el-table__row:hover > td.el-table__cell {
+  background: var(--apple-parchment);
+}
+
+/* --- Tags: Pill shape --- */
+.el-tag {
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: var(--tracking-nav);
+  border: none;
+  padding: 2px 12px;
+  height: 24px;
+  line-height: 24px;
+}
+.el-tag--primary,
+.el-tag--success,
+.el-tag--warning,
+.el-tag--danger,
+.el-tag--info {
+  border: none;
+}
+
+/* --- Menu / Sidebar --- */
+.el-menu {
+  border-right: none !important;
+  font-family: var(--font-sans);
+}
+.el-menu-item {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  font-weight: 400;
+  letter-spacing: var(--tracking-body);
+}
+.el-menu-item.is-active {
+  font-weight: 600;
+}
+
+/* --- Card --- */
+.el-card {
+  border-radius: var(--radius-lg);
+  border: none;
+  box-shadow: var(--shadow-hairline);
+  background: var(--apple-canvas);
+}
+.el-card__header {
+  border-bottom: 1px solid var(--apple-divider-soft);
+  padding: var(--space-lg) var(--space-xl);
+  font-weight: 600;
+}
+
+/* --- Dialog --- */
+.el-dialog {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-product);
+}
+.el-dialog__header {
+  padding: var(--space-xl) var(--space-xl) 0;
+}
+.el-dialog__body {
+  padding: var(--space-xl);
+}
+.el-dialog__title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: var(--text-lead);
+}
+
+/* --- Form --- */
+.el-form-item__label {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--text-body);
+  color: var(--apple-ink);
+}
+
+/* --- Radio / Checkbox --- */
+.el-radio-button__inner {
+  border-radius: var(--radius-pill) !important;
+  font-family: var(--font-sans);
+  font-size: var(--text-button-utility);
+  letter-spacing: var(--tracking-button);
+}
+.el-radio-button:first-child .el-radio-button__inner {
+  border-radius: var(--radius-pill) !important;
+}
+.el-radio-button:last-child .el-radio-button__inner {
+  border-radius: var(--radius-pill) !important;
+}
+
+/* --- Pagination --- */
+.el-pagination .el-pager li {
+  border-radius: var(--radius-pill);
+  font-family: var(--font-sans);
+}
+
+/* --- Upload --- */
+.el-upload-dragger {
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--apple-hairline);
+  background: var(--apple-pearl);
+  transition: all var(--duration-normal) var(--ease-out);
+}
+.el-upload-dragger:hover {
+  border-color: var(--apple-blue);
+  background: var(--apple-canvas);
+}
+
+/* --- Message --- */
+.el-message {
+  border-radius: var(--radius-sm);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+}
+
+/* --- Popconfirm --- */
+.el-popconfirm__action .el-button {
+  border-radius: var(--radius-pill) !important;
+}
+
+/* --- Tabs --- */
+.el-tabs__item {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+}
+
+/* --- Date Picker --- */
+.el-date-editor {
+  border-radius: var(--radius-sm);
+}
+
+/* --- Loading --- */
+.el-loading-mask {
+  border-radius: var(--radius-lg);
+}
+
+/* ============================================================
+   09 — UTILITY CLASSES
+   ============================================================ */
+.apple-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--space-xl);
+}
+
+.apple-page-header {
+  padding: var(--space-xxl) 0 var(--space-xl);
+  text-align: center;
+}
+.apple-page-header h2 {
+  font-size: var(--text-display-md);
+  font-weight: 600;
+  letter-spacing: var(--tracking-display);
+}
+.apple-page-header p {
+  font-size: var(--text-lead-airy);
+  font-weight: 300;
+  color: var(--apple-ink-muted);
+  margin-top: var(--space-xs);
+  letter-spacing: var(--tracking-lead);
+}
+
+.apple-section {
+  padding: var(--space-xxl) 0;
+}
+.apple-section-parchment {
+  background: var(--apple-parchment);
+}
+
+.apple-card {
+  background: var(--apple-canvas);
+  border-radius: var(--radius-lg);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-hairline);
+}
+
+.apple-divider {
+  height: 1px;
+  background: var(--apple-hairline);
+  margin: var(--space-xl) 0;
+}
+
+.apple-text-muted {
+  color: var(--apple-ink-disabled);
+  font-size: var(--text-button-utility);
+}
