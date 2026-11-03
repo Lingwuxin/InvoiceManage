@@ -101,6 +101,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'invoice_type',
             'trip_group_title',
             'reimbursement_status',
+            'vision_validation_result',
+            'vision_validated_at',
         )
 
     def get_is_submitted(self, obj):

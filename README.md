@@ -126,6 +126,21 @@ uv run python manage.py test --settings=config.test_settings
 
 测试配置会先加载 `config/settings.py`，因此运行测试时仍然需要存在 `InvoiceManageBack/.env` 且包含 `DJANGO_SECRET_KEY`、`DB_PASSWORD`。
 
+## 发票视觉校验（可选）
+
+发票预览中的“视觉校验”会将 PDF 首页和当前识别字段发送给兼容 OpenAI Chat Completions 接口的视觉模型，逐字段核对图像值与识别值。校验结果会保存并展示，但不会自动修改原识别字段；标记为“不一致”“票据未显示”或“无法确认”的字段需要人工复核。
+
+在 `InvoiceManageBack/.env` 中配置服务商提供的视觉模型：
+
+```dotenv
+VISION_MODEL_API_KEY=your-api-key
+VISION_MODEL_NAME=your-vision-model
+VISION_MODEL_BASE_URL=https://api.openai.com/v1
+VISION_MODEL_TIMEOUT=90
+```
+
+`VISION_MODEL_BASE_URL` 应填写到 `/v1` 等 API 根路径，不要包含 `/chat/completions`。接口地址为 `POST /api/invoices/{id}/validate-vision/`，只能校验当前用户自己的发票。未配置 API Key 或模型名称时，该功能返回明确的不可用提示，不影响发票上传与解析。
+
 ## 常用管理命令
 
 以下命令均在 `InvoiceManageBack` 目录下执行：
